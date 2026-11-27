@@ -105,11 +105,21 @@ export default function TvScreen({ V, reduced, frameStyle, sound }) {
                 {V.upNext.map(u => <div key={u.n} style={s('display:flex;align-items:center;gap:.8cqw;padding:.6cqw .9cqw;background:#FFF9EF;border:2px solid #E3D3B5;border-radius:.9cqw;font:800 1.2cqw/1.1 Nunito')}><span style={s("font:500 .9cqw 'DM Mono';color:#4A5B75")}>{u.n}</span>{u.name}</div>)}
                 {V.L < 2 && <div style={s('font:700 1cqw Nunito;color:#4A5B75')}>Just one player, so they'll keep going.</div>}
               </div>
+              <div style={s('display:flex;flex-direction:column;gap:.45cqw;min-height:0;overflow:hidden')}>
+                <div style={s("font:500 .85cqw/1 'DM Mono';letter-spacing:.18em;color:#4A5B75")}>STANDINGS</div>
+                {V.standings.slice(0, 5).map(x => (
+                  <div key={x.id} style={s(`display:flex;align-items:center;gap:.7cqw;padding:.45cqw .8cqw;border-radius:.8cqw;border:2px solid ${x.tope ? '#12284A' : x.id === (V.r && V.r.playerId) ? '#12284A' : '#E3D3B5'};background:${x.tope ? '#EF5B45' : x.place === 1 && x.pts ? '#FFE9A8' : '#FFF9EF'}`)}>
+                    <span style={s("flex:none;width:1.6cqw;font:500 .9cqw 'DM Mono';color:#12284A")}>{x.place}</span>
+                    <span style={s('flex:1;min-width:0;font:800 1.1cqw/1.1 Nunito;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{x.name}</span>
+                    <span style={s("font:400 1.7cqw/1 'Caveat Brush'")}><Roll value={x.pts} /></span>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div style={s('position:relative;min-height:0;min-width:0')}>
               <div style={s('position:absolute;inset:0 0 3.4cqw 0')}><Globe spin={V.game.spin} idle reduced={reduced} sound={sound} /></div>
-              <div style={s('position:absolute;left:-1cqw;bottom:4cqw;height:15cqw;z-index:2')}>{T(V.mood)}</div>
+              <div style={s('position:absolute;left:1.2cqw;bottom:4cqw;height:14cqw;z-index:2')}>{T(V.mood)}</div>
               {V.shown && (
                 <div key={V.r.n} style={s('position:absolute;left:50%;bottom:0;transform:translateX(-50%);display:flex;align-items:center;gap:1.2cqw;background:#FFF9EF;border:2px solid #12284A;border-radius:1.2cqw;padding:.8cqw 1.8cqw .8cqw .8cqw;box-shadow:0 .5cqw 0 #12284A;animation:htArrive .7s cubic-bezier(.2,.9,.3,1.2) both;white-space:nowrap')}>
                   {V.flagUrl && <img src={V.flagUrl} alt="" style={s('height:3.6cqw;width:5.4cqw;object-fit:cover;border-radius:.4cqw;border:2px solid #12284A')} />}
@@ -197,7 +207,7 @@ export default function TvScreen({ V, reduced, frameStyle, sound }) {
             <div style={s('display:flex;align-items:center;gap:1.4cqw;background:#EF5B45;color:#12284A;border:2px solid #12284A;border-radius:1.4cqw;padding:.8cqw 2cqw;box-shadow:0 .5cqw 0 #12284A')}><span style={s('font:900 1.5cqw Nunito')}>{bname}</span><span style={s("font:400 5cqw/1 'Caveat Brush'")}><Roll value={V.tp} /></span></div>
           </div>
           <div style={s('display:flex;gap:.6cqw;flex-wrap:wrap;justify-content:center;max-width:80cqw')}>
-            {V.leaderboard.map((l, i) => <span key={i} style={s('font:800 1.05cqw/1 Nunito;padding:.45cqw .9cqw;border-radius:999px;background:#FFF9EF;border:2px solid #12284A')}>{l.name} · {l.pts}</span>)}
+            {V.leaderboard.map(l => <span key={l.id} style={s(`display:inline-flex;align-items:center;gap:.5cqw;font:800 1.05cqw/1 Nunito;padding:.4cqw .9cqw .4cqw .4cqw;border-radius:999px;background:${l.place <= 3 && l.pts ? ['#FFC83D', '#CFEDE5', '#FFD9CF'][l.place - 1] : '#FFF9EF'};border:2px solid #12284A`)}><span style={s("display:grid;place-items:center;width:1.6cqw;height:1.6cqw;border-radius:50%;background:#12284A;color:#FFF9EF;font:500 .8cqw/1 'DM Mono'")}>{l.place}</span>{l.name} · {l.pts}</span>)}
           </div>
           <div style={s('display:grid;grid-template-columns:repeat(auto-fill,minmax(14cqw,1fr));gap:.8cqw;width:100%;margin-top:.6cqw;overflow:hidden')}>
             {V.recap.map((x, i) => (

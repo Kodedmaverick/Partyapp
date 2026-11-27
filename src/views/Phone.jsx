@@ -79,7 +79,7 @@ export default function Phone({ initialCode }) {
             <span style={s("width:36px;height:36px;border-radius:50%;background:#1B5E8C;color:#FFF9EF;display:grid;place-items:center;font:400 20px/1 'Caveat Brush';border:2px solid #12284A")}>{me.name[0].toUpperCase()}</span>
             <div style={s('display:flex;flex-direction:column;gap:2px;min-width:0;flex:1')}><span style={s('font:900 15px/1.1 Nunito;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{me.name}</span><span style={s('display:flex;align-items:center;gap:5px;font:700 12px Nunito;color:#4A5B75')}><span style={s(`width:7px;height:7px;border-radius:50%;background:${myConnected ? '#13807B' : '#C8402B'}`)} />{myConnected ? 'Connected' : 'Reconnecting…'}</span></div>
             <div style={s('display:flex;gap:4px;font:900 13px/1 Nunito')}>
-              <span style={s('padding:6px 8px;border-radius:9px;background:#13807B;color:#fff;border:1.5px solid #12284A;display:flex;gap:4px;align-items:center')}>You <Roll value={V.myPts} /></span>
+              <span title={V.rankLabel} style={s('padding:6px 8px;border-radius:9px;background:#13807B;color:#fff;border:1.5px solid #12284A;display:flex;gap:4px;align-items:center')}>You <Roll value={V.myPts} />{V.myRank && V.myPts ? <span style={s("font:500 10px 'DM Mono';opacity:.85")}>#{V.myRank}</span> : null}</span>
               <span style={s('padding:6px 8px;border-radius:9px;background:#EF5B45;color:#12284A;border:1.5px solid #12284A;display:flex;gap:4px;align-items:center')}>{bname} <Roll value={V.tp} /></span>
             </div>
           </div>
@@ -162,6 +162,7 @@ export default function Phone({ initialCode }) {
                   <div style={s('padding:14px;border-radius:16px;background:#EF5B45;color:#12284A;border:2px solid #12284A;text-align:center')}><div style={s('font:800 13px Nunito')}>{bname}</div><div style={s("font:400 48px/1 'Caveat Brush'")}><Roll value={V.tp} /></div></div>
                 </div>
               )}
+              {V.game && stage !== 'lobby' && (!V.active || stage === 'revealed' || stage === 'finale') && <Standings V={V} full={stage === 'finale'} />}
             </>
           )}
         </div>
@@ -183,6 +184,26 @@ export default function Phone({ initialCode }) {
         )}
       </div>
       <Confetti fire={fx.n} big={fx.big} reduced={reduced} />
+    </div>
+  );
+}
+
+function Standings({ V, full }) {
+  const rows = full ? V.standings : V.standings.slice(0, 5);
+  const meRow = V.standings.find(x => x.me);
+  const showMe = !full && meRow && !rows.includes(meRow);
+  const Row = ({ x }) => (
+    <div style={s(`display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:12px;border:2px solid ${x.me || x.tope ? '#12284A' : '#E3D3B5'};background:${x.tope ? '#EF5B45' : x.me ? '#CFEDE5' : '#FFF9EF'}`)}>
+      <span style={s("width:22px;font:500 13px 'DM Mono'")}>{x.place}</span>
+      <span style={s('flex:1;min-width:0;font:800 15px Nunito;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{x.name}{x.me ? ' (you)' : ''}</span>
+      <span style={s("font:400 26px/1 'Caveat Brush'")}><Roll value={x.pts} /></span>
+    </div>
+  );
+  return (
+    <div style={s('display:flex;flex-direction:column;gap:6px')}>
+      <div style={s('display:flex;align-items:baseline;gap:8px')}><span style={s("font:400 26px/1 'Caveat Brush'")}>Leaderboard</span>{V.rankLabel && <span style={s('font:700 13px Nunito;color:#4A5B75')}>You: {V.rankLabel}</span>}</div>
+      {rows.map(x => <Row key={x.id} x={x} />)}
+      {showMe && <><div style={s('text-align:center;font:800 13px Nunito;color:#4A5B75')}>⋯</div><Row x={meRow} /></>}
     </div>
   );
 }

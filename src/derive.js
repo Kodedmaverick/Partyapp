@@ -54,7 +54,17 @@ export function derive(snap, meId) {
   for (let i = done; i < total; i++) trail.push({ code: '', title: '', bs: 'dashed', bc: '#9AA6B8', bg: 'transparent', fg: '#12284A', rot: '0deg' });
 
   const upNext = [];
-  if (game && L > 1 && inRound) for (let k = 1; k <= Math.min(3, L - 1); k++) upNext.push({ n: k, name: P[(game.pos + k) % L].name });
+  if (game && L > 1 && inRound) for (let k = 1; k <= Math.min(2, L - 1); k++) upNext.push({ n: k, name: P[(game.pos + k) % L].name });
+
+  // Leaderboard: every guest (including ones who left mid-game) ranked by correct calls.
+  // Ties share a place (1, 1, 3). Standings add Tope as his own row so guests can see who's ahead of him.
+  const ids = [...new Set([...P.map(p => p.id), ...Object.keys(pts)])];
+  const rankOf = (list) => { let last = null, place = 0; return list.map((x, i) => { if (x.pts !== last) { place = i + 1; last = x.pts; } return { ...x, place }; }); };
+  const leaderboard = rankOf(ids.map(id => ({ id, name: names[id] || 'Guest', pts: pts[id] || 0, me: id === meId })).sort((a, b) => b.pts - a.pts || a.name.localeCompare(b.name)));
+  const standings = rankOf([...leaderboard.map(({ place, ...x }) => x), { id: '__tope', name, pts: tp, tope: true }].sort((a, b) => b.pts - a.pts || (a.tope ? -1 : b.tope ? 1 : 0)));
+  const mine = leaderboard.find(x => x.me);
+  const myRank = mine ? mine.place : null;
+  const rankLabel = mine ? (mine.pts ? `${ord(mine.place)} of ${leaderboard.length}${leaderboard.filter(x => x.place === mine.place).length > 1 ? ' (tied)' : ''}` : 'No points yet') : '';
 
   // phone copy
   let k = '', kb = '#FFE9A8', t = '', b = '';
@@ -91,7 +101,7 @@ export function derive(snap, meId) {
     winnerColor: winner === 'everyone' ? '#13807B' : winner === 'tope' ? '#C8402B' : '#1B5E8C',
     finaleKicker: game && game.endedEarly ? 'THE TRIP ENDED EARLY' : game && game.exhausted ? 'WE RAN OUT OF DESTINATIONS' : 'TRIP COMPLETE',
     finaleCopy: winner === 'everyone' ? `Top detective with ${topPts} correct calls. ${name} fooled ${tp}.` : winner === 'tope' ? (topPts ? `${name} fooled ${tp} of ${done} guests. Best detective: ${leadNames} (${topPts}).` : `${name} fooled ${tp} of ${done} guests. Nobody caught him out.`) : `${leadNames} matched ${name} at ${tp}. Cake for everyone.`,
-    leaderboard: Object.keys({ ...pts, ...Object.fromEntries(P.map(p => [p.id, 1])) }).map(id => ({ name: names[id] || 'Guest', pts: pts[id] || 0 })).sort((a, b) => b.pts - a.pts),
+    leaderboard, standings, myRank, rankLabel,
     recap: rounds.filter(x => x.result === 'everyone' || x.result === 'tope').map((x, i) => {
       const cc = x.country || {}, e = x.result === 'everyone', pn = names[x.playerId] || x.playerName || 'Guest';
       return { name: cc.name || '', flag: flag(cc), line: `${pn} said ${x.guess ? 'been' : 'not been'} · ${x.truth ? 'Been' : 'Not been'}`, tag: e ? `+1 ${pn.toUpperCase()}` : `+1 ${name.toUpperCase()}`, bg: e ? '#CFEDE5' : '#FFD9CF', fg: '#12284A', delay: (0.6 + i * 0.08) + 's' };
