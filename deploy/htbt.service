@@ -1,0 +1,13 @@
+[Unit]
+Description=Has Tope Been There
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/htbt
+EnvironmentFile=/opt/htbt/.env
+ExecStart=/usr/bin/node server/index.js
+Restart=always
+User=www-data
+
+[Install]
+WantedBy=multi-user.target
