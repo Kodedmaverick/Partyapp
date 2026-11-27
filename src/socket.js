@@ -16,7 +16,7 @@ export function useRoomSocket(auth, { onEvent } = {}) {
   useEffect(() => {
     if (!key) return;
     verRef.current = 0;
-    const sock = io({ auth: JSON.parse(key), transports: ['websocket', 'polling'] });
+    const sock = io({ auth: JSON.parse(key) }); // polling first, then upgrade to WebSocket when the proxy allows it
     sockRef.current = sock;
     const take = st => {
       // A room-code change keeps versions increasing, so a plain >= check is enough.

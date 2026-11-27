@@ -90,6 +90,7 @@ export function QR({ text }) {
 
 // Cuts a face photo (400x400, plain background) into a head sticker:
 // flood-fill background, oval mask, posterise, navy outline. Ported from the prototype.
+export const FACE = { cx: 196, cy: 168, rx: 104, ry: 136 };
 export function cutout(cv) {
   const W = cv.width, H = cv.height, sc = W / 400, ctx = cv.getContext('2d'), d = ctx.getImageData(0, 0, W, H), p = d.data;
   const core = (x, y) => { const ex = (x / sc - 198) / 92, ey = (y / sc - 168) / 140; return ex * ex + ey * ey < 1; };
@@ -100,6 +101,8 @@ export function cutout(cv) {
   for (let y = 0; y < H; y++) q.push(0, y, W - 1, y);
   while (q.length) { const y = q.pop(), x = q.pop(); if (x < 0 || y < 0 || x >= W || y >= H) continue; const k = y * W + x; if (!alpha[k] || core(x, y) || !bgLike(k * 4)) continue; alpha[k] = 0; q.push(x + 1, y, x - 1, y, x, y + 1, x, y - 1); }
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const ex = (x / sc - 205) / 118, ey = (y / sc - 170) / 172; if (ex * ex + ey * ey > 1 || y / sc > 332) alpha[y * W + x] = 0; }
+  // Face only: below the cheekbones, keep pixels inside a jaw-shaped ellipse so the neck is trimmed off.
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const yy = y / sc; if (yy < 200) continue; const ex = (x / sc - FACE.cx) / FACE.rx, ey = (yy - FACE.cy) / FACE.ry; if (ex * ex + ey * ey > 1) alpha[y * W + x] = 0; }
   const keep = new Uint8Array(W * H), st = [Math.floor(200 * sc), Math.floor(170 * sc)];
   while (st.length) { const y = st.pop(), x = st.pop(); if (x < 0 || y < 0 || x >= W || y >= H) continue; const k = y * W + x; if (keep[k] || !alpha[k]) continue; keep[k] = 1; st.push(x + 1, y, x - 1, y, x, y + 1, x, y - 1); }
   const src = new Uint8ClampedArray(p), R = 2, L = 7, qz = v => Math.round(Math.round(v / 255 * (L - 1)) / (L - 1) * 255);

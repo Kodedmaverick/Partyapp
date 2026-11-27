@@ -2,7 +2,7 @@
 // and tightened per SPEC.md. Every mutating function returns either
 // { ok: true } or { ok: false, code, message }. Callers persist + broadcast.
 import crypto from 'node:crypto';
-import { COUNTRIES, QUESTIONS } from './seed.js';
+import { COUNTRIES, QUESTIONS, SEED_VERSION } from './seed.js';
 
 export const SPIN_MS = 5000;
 export const SPIN_LEAD_MS = 300;
@@ -22,16 +22,30 @@ export function shuffle(a) {
 const fail = (code, message) => ({ ok: false, code, message });
 const OK = { ok: true };
 
+const seedCountry = ([a2, n3, name, lat, lon, v]) => ({ id: a2, a2, n3, name, lat, lon, visited: v, selected: true, extra: [] });
+
+// Adds countries introduced by a newer seed to rooms created before it. Runs once per seed version,
+// so a country the host removes on purpose doesn't come back.
+export function migrateRoom(room) {
+  if ((room.seedVersion || 1) >= SEED_VERSION) return false;
+  const have = new Set(room.countries.map(c => c.a2 || c.id));
+  const add = COUNTRIES.filter(c => !have.has(c[0])).map(seedCountry);
+  room.countries = [...add, ...room.countries];
+  room.seedVersion = SEED_VERSION;
+  return true;
+}
+
 export function newRoom(code = 'TOPE40') {
   return {
     id: 'r' + uid(10),
     code,
     createdAt: Date.now(),
     status: 'open',
+    seedVersion: SEED_VERSION,
     hostTokenHashes: [],
     settings: { name: 'Tope', age: 40, rounds: 10, order: 'shuffle', timerEnabled: false, timerSecs: 90, allowOwn: true, sound: false },
     photoV: 0,
-    countries: COUNTRIES.map(([a2, n3, name, lat, lon, v]) => ({ id: a2, a2, n3, name, lat, lon, visited: v, selected: true, extra: [] })),
+    countries: COUNTRIES.map(seedCountry),
     questions: QUESTIONS.map(([cat, text], i) => ({ id: 'q' + i, cat, text })),
     players: [],
     game: null,
@@ -148,6 +162,14 @@ export function addPlayer(room, name, byHost) {
 export function join(room, name) {
   if (!room.game) return fail('ROOM_NOT_OPEN', "That room isn't open yet. Ask the host to open the lobby.");
   if (room.game.stage === 'finale') return fail('GAME_FINISHED', 'This game has finished. Hang on for the next one.');
+  // Rejoin: a dropped phone (or a new phone) can take back an offline player's spot by typing the same name.
+  const n = cleanName(name), existing = n && room.players.find(p => p.name.toLowerCase() === n.toLowerCase());
+  if (existing) {
+    if (existing.connected) return fail('NAME_TAKEN', `Someone's already called ${existing.name} and they're connected. Try adding an initial.`);
+    const t = token();
+    existing.tokenHash = hash(t);
+    return { ok: true, player: existing, sessionToken: t, rejoined: true };
+  }
   const res = addPlayer(room, name, false);
   if (!res.ok) return res;
   const t = token();

@@ -1,29 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { geoCentroid } from 'd3-geo';
 import { s, flag, cat, cmdId, sfx } from '../lib.js';
 import { emitAck } from '../socket.js';
-import { loadWorld } from '../components/Globe.jsx';
+import { findCountry, toEntry, COUNTRY_LIST } from '../countries.js';
 import Tope from '../components/Tope.jsx';
 import { cutout } from '../components/fx.jsx';
-
-const ALIAS = { 'usa': 'united states of america', 'united states': 'united states of america', 'us': 'united states of america', 'uk': 'united kingdom', 'great britain': 'united kingdom', 'uae': 'united arab emirates', 'czech republic': 'czechia', 'ivory coast': "côte d'ivoire", 'drc': 'dem. rep. congo', 'dr congo': 'dem. rep. congo', 'st lucia': 'saint lucia', 'st kitts and nevis': 'st. kitts and nevis', 'saint kitts and nevis': 'st. kitts and nevis', 'british virgin islands': 'british virgin is.', 'bosnia': 'bosnia and herz.', 'dominican republic': 'dominican rep.', 'south korea': 'south korea', 'central african republic': 'central african rep.' };
-let A2 = null;
-function a2Map() {
-  if (A2) return A2;
-  const m = {};
-  try { const dn = new Intl.DisplayNames(['en'], { type: 'region' }); for (let i = 65; i < 91; i++) for (let j = 65; j < 91; j++) { const c = String.fromCharCode(i, j), nm = dn.of(c); if (nm && nm !== c) m[nm.toLowerCase()] = c; } } catch (e) { /* ignore */ }
-  return (A2 = m);
-}
-function lookup(W, q) {
-  const n = q.trim().toLowerCase(), t = ALIAS[n] || n;
-  const f = W.big.find(x => x.properties.name.toLowerCase() === t);
-  if (!f) return null;
-  const [lon, lat] = geoCentroid(f);
-  const m = a2Map();
-  const a2 = m[n] || m[f.properties.name.toLowerCase()] || null;
-  const pretty = q.trim().replace(/\b\w/g, ch => ch.toUpperCase());
-  return { id: a2 || f.id, a2, n3: f.id, name: pretty, lat: +lat.toFixed(2), lon: +lon.toFixed(2) };
-}
 
 function validate(d, code) {
   const e = [], sel = d.countries.filter(c => c.selected);
@@ -81,22 +61,19 @@ export default function HostSetup({ snap, socket, onLaunched }) {
   const moveCountry = (id, dir) => update(p => { const L = p.countries.slice(), i = L.findIndex(c => c.id === id), j = i + dir; if (i < 0 || j < 0 || j >= L.length) return p; [L[i], L[j]] = [L[j], L[i]]; return { ...p, countries: L, settings: { ...p.settings, order: 'manual' } }; });
 
   async function addCountries(lines) {
-    const W = await loadWorld().catch(() => null);
-    if (!W) return 'Map data is still loading. Try again in a moment.';
     let list = latest.current.countries.slice(); const added = [], updated = [], missing = [];
     lines.forEach(line => {
-      const m = line.trim().match(/^(.*?)(?:\s*[,\-–:]\s*(yes|no|y|n|visited|not visited))?\s*$/i);
+      const m = line.trim().match(/^(.*?)(?:\s*[,\-–:]\s*(yes|no|y|n|visited|not visited|been|not been))?\s*$/i);
       if (!m || !m[1].trim()) return;
-      const nm = m[1].trim(), ans = m[2] ? /^(y|yes|visited)$/i.test(m[2]) : null;
-      const ex = list.find(c => c.name.toLowerCase() === nm.toLowerCase() || (ALIAS[nm.toLowerCase()] || '') === c.name.toLowerCase());
-      if (ex) { if (ans !== null) { list = list.map(c => (c === ex ? { ...c, visited: ans, selected: true } : c)); updated.push(ex.name); } return; }
-      const f = lookup(W, nm);
+      const nm = m[1].trim(), ans = m[2] ? /^(y|yes|visited|been)$/i.test(m[2]) : null;
+      const f = findCountry(nm);
       if (!f) { missing.push(nm); return; }
-      if (list.some(c => c.n3 === f.n3)) return;
-      list.push({ ...f, visited: ans, selected: true, extra: [] }); added.push(f.name);
+      const ex = list.find(c => c.a2 === f.a2 || c.n3 === f.n3 || c.name.toLowerCase() === f.name.toLowerCase());
+      if (ex) { list = list.map(c => (c === ex ? { ...c, a2: f.a2, n3: f.n3, lat: f.lat, lon: f.lon, selected: true, visited: ans !== null ? ans : c.visited } : c)); updated.push(ex.name); return; }
+      list.push({ ...toEntry(f), visited: ans, selected: true, extra: [] }); added.push(f.name);
     });
     update(p => ({ ...p, countries: list }));
-    return [added.length ? `Added ${added.length}.` : '', updated.length ? `Updated ${updated.length}.` : '', missing.length ? `Couldn't find ${missing.join(', ')}. Check the spelling.` : ''].filter(Boolean).join(' ') || 'Nothing new to add.';
+    return [added.length ? `Added ${added.join(', ')}.` : '', updated.length ? `Already listed: ${updated.join(', ')}.` : '', missing.length ? `Couldn't find ${missing.join(', ')}. Check the spelling.` : ''].filter(Boolean).join(' ') || 'Nothing new to add.';
   }
 
   const cmd = (type, extra = {}) => emitAck(socket, 'cmd', { type, commandId: cmdId(), ...extra });
@@ -173,10 +150,11 @@ export default function HostSetup({ snap, socket, onLaunched }) {
               <div style={s('display:flex;flex-wrap:wrap;gap:10px')}>
                 <input className="foc" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search countries" style={s('flex:1 1 200px;min-width:0;padding:11px 14px;border:2px solid #12284A;border-radius:12px;background:#fff;font:600 15px Nunito;outline:none')} />
                 <div style={s('display:flex;gap:8px;flex:1 1 260px')}>
-                  <input className="foc" value={addName} onChange={e => { setAddName(e.target.value); setAddMsg(''); }} onKeyDown={async e => { if (e.key === 'Enter' && addName.trim()) { const m = await addCountries([addName]); setAddName(''); setAddMsg(m); } }} placeholder="Add a country, e.g. Chile" style={s('flex:1;min-width:0;padding:11px 14px;border:2px solid #12284A;border-radius:12px;background:#fff;font:600 15px Nunito;outline:none')} />
+                  <input className="foc" value={addName} onChange={e => { setAddName(e.target.value); setAddMsg(''); }} onKeyDown={async e => { if (e.key === 'Enter' && addName.trim()) { const m = await addCountries([addName]); setAddName(''); setAddMsg(m); } }} list="htbt-countries" placeholder="Add a country, e.g. Chile" style={s('flex:1;min-width:0;padding:11px 14px;border:2px solid #12284A;border-radius:12px;background:#fff;font:600 15px Nunito;outline:none')} />
                   <button className="press-sm" onClick={async () => { if (!addName.trim()) return; const m = await addCountries([addName]); setAddName(''); setAddMsg(m); }} style={s('padding:0 16px;border-radius:12px;border:2px solid #12284A;background:#FFF9EF;font:800 14px Nunito;box-shadow:0 3px 0 #12284A;cursor:pointer')}>Add</button>
                 </div>
               </div>
+              <datalist id="htbt-countries">{COUNTRY_LIST.map(c => <option key={c.a2} value={c.name} />)}</datalist>
               <details style={s('border:2px dashed #E3D3B5;border-radius:12px;padding:10px 14px')}>
                 <summary style={s('cursor:pointer;font:800 14px Nunito')}>Bulk paste</summary>
                 <div style={s('display:flex;flex-direction:column;gap:8px;padding-top:10px')}>
@@ -187,7 +165,7 @@ export default function HostSetup({ snap, socket, onLaunched }) {
                   </div>
                 </div>
               </details>
-              {addMsg && <div style={s('font:700 13px Nunito;color:#B23A26')}>{addMsg}</div>}
+              {addMsg && <div style={s(`font:700 13px Nunito;color:${/Couldn't/.test(addMsg) ? '#B23A26' : '#13807B'}`)}>{addMsg}</div>}
               <div style={s('display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font:700 13px Nunito;color:#4A5B75')}><span>{sel.length} in the game · {answered} answered</span><span>{st.order === 'shuffle' ? 'Order: shuffled at launch' : 'Order: as listed'}</span></div>
               <div style={s('display:flex;flex-direction:column;gap:8px')}>
                 {filtered.map(x => {

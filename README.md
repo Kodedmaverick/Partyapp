@@ -58,7 +58,8 @@ Everything lives in one SQLite file, `/data/htbt.sqlite`. Copy it while the app 
 1. Open `/host`, sign in, check the countries, then press **Ready to launch**. This opens the lobby.
 2. Open `/screen/TOPE40` on the TV. Click **Go full screen + sound** once so the browser allows audio.
 3. Guests scan the QR code. If a phone dies, use **Enter their guess** on the host page, or add people without phones to the queue.
-4. A phone that reloads keeps its place, because the session token is stored on the device.
+4. A phone that reloads keeps its place, because the session token is stored on the device. If someone loses their session completely (new phone, cleared browser), they can type the same name and room code to take back their spot, as long as the old one is offline.
+5. Adding a country in setup: type any common name (USA, UK, Holland, St Kitts, Ivory Coast…). Small typos are fine. The flag and globe position fill in automatically. The country table lives in `src/countryData.json`; rebuild it with `node scripts/build-countries.cjs`.
 
 ## Local development
 

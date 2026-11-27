@@ -19,7 +19,7 @@ if (!HOST_PASSWORD || HOST_PASSWORD === 'change-me') {
 
 // ---- in-memory state rebuilt from the database ------------------------------
 const rooms = new Map(); // code -> room
-for (const r of DB.loadRooms()) { r.players.forEach(p => { p.connected = false; }); rooms.set(r.code, r); }
+for (const r of DB.loadRooms()) { r.players.forEach(p => { p.connected = false; }); if (G.migrateRoom(r)) DB.saveRoom(r); rooms.set(r.code, r); }
 const byId = id => [...rooms.values()].find(r => r.id === id);
 const latestRoom = () => [...rooms.values()].sort((a, b) => b.createdAt - a.createdAt)[0] || null;
 
@@ -212,7 +212,7 @@ io.on('connection', socket => {
     refreshConnected(r);
     commit(r);
     socket.emit('you', { participantId });
-    ack && ack({ ok: true, sessionToken: res.sessionToken, participantId, code: r.code });
+    ack && ack({ ok: true, sessionToken: res.sessionToken, participantId, code: r.code, rejoined: !!res.rejoined });
   });
 
   socket.on('lockGuess', (c = {}, ack) => {
